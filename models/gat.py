@@ -36,16 +36,19 @@ class HeteGAT_multi(BaseGAttN):
                   bias_mat_list, hid_units, n_heads, activation=tf.nn.elu, residual=False,
                   mp_att_size=128):
         embed_list = []
-        for inputs, bias_mat in zip(inputs_list, bias_mat_list):
+        inputs = tf.layers.dense(inputs_list[0], units=hid_units[0])
+
+        for bias_mat in bias_mat_list:
             attns = []
             jhy_embeds = []
             for _ in range(n_heads[0]):
+
                 attns.append(layers.attn_head(inputs, bias_mat=bias_mat,
-                                              out_sz=hid_units[0], activation=activation,
+                                              out_sz=hid_units[1], activation=activation,
                                               in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
             h_1 = tf.concat(attns, axis=-1)
 
-            for i in range(1, len(hid_units)):
+            for i in range(2, len(hid_units)):
                 h_old = h_1
                 attns = []
                 for _ in range(n_heads[i]):

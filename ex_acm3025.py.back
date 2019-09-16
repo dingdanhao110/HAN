@@ -8,23 +8,23 @@ from utils import process
 # 禁用gpu
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
-dataset = 'freebase'
+dataset = 'yelp'
 featype = 'fea'
-checkpt_file = '{}.ckpt'.format(dataset)
+checkpt_file = 'pre_trained/{}/{}_allMP_multi_{}_.ckpt'.format(dataset, dataset, featype)
 print('model: {}'.format(checkpt_file))
 # training params
-batch_size = 1
-nb_epochs = 2000
+batch_size = 128
+nb_epochs = 1000
 patience = 100
 lr = 0.005  # learning rate
-l2_coef = 0.0005  # weight decay
+l2_coef = 0.001  # weight decay
 # numbers of hidden units per each attention head in each layer
-hid_units = [64,32]
+hid_units = [8]
 n_heads = [8, 1]  # additional entry for the output layer
 residual = False
 nonlinearity = tf.nn.elu
@@ -46,114 +46,24 @@ print('model: ' + str(model))
 import scipy.io as sio
 import scipy.sparse as sp
 
-def set_seeds(seed=0):
-    np.random.seed(seed)
 
 def sample_mask(idx, l):
     """Create mask."""
-    mask = np.zeros(l)
-    mask[idx] = 1
-    return np.array(mask, dtype=np.bool)
-
-scheme_ind = {'yelp':['BRURB','BRKRB'],'freebase':['MAM','MDM','MWM']}
-feat_ind = {'yelp':None,'freebase':None}
-label_ind = {'yelp':'true_cluster','freebase':'labels'}
-path_ind = {'yelp':'C:/Users/dhding/Documents/GitHub/HINGCN/data/yelp/',
-        'freebase':'C:/Users/dhding/Documents/GitHub/HINGCN/data/freebase/'}
-
-def load_data(dataset):
-    scheme = scheme_ind[dataset]
-    feat_file = feat_ind[dataset]
-    label_file = label_ind[dataset]
-    path = path_ind[dataset]
-
-    set_seeds(42)
-    data = []
-
-    for s in scheme:
-        data.append(sp.load_npz("{}{}_cnt.npz".format(path, s) ).todense())
+    mask = np.zeros(l,dtype=bool)
+    mask[idx] = True
+    return mask
 
 
-    if dataset == 'freebase':
-        movies = []
-        with open('{}{}.txt'.format(path, "movies"), mode='r', encoding='UTF-8') as f:
-            for line in f:
-                movies.append(line.split()[0])
-
-        n_movie = len(movies)
-        movie_dict = {a: i for (i, a) in enumerate(movies)}
-        labels_raw = []
-        with open('{}{}.txt'.format(path, label_file), 'r', encoding='UTF-8') as f:
-            for line in f:
-                arr = line.split()
-                labels_raw.append([int(movie_dict[arr[0]]), int(arr[1])])
-        labels_raw = np.asarray(labels_raw)
-
-        labels = np.zeros(n_movie,dtype=np.int32)
-        labels[labels_raw[:, 0]] = labels_raw[:, 1]
-    else:
-        labels = np.genfromtxt("{}{}.txt".format(path, label_file),
-                           dtype=np.int32)
-
-    reordered = np.random.permutation(np.arange(labels.shape[0]))
-    total_labeled = labels.shape[0]
-
-    idx_train = reordered[range(int(total_labeled * 0.4))]
-    idx_val = reordered[range(int(total_labeled * 0.4), int(total_labeled * 0.8))]
-    idx_test = reordered[range(int(total_labeled * 0.8), total_labeled)]
-
-    y = np.zeros((total_labeled,3))
-    for i in range(total_labeled):
-        y[i,labels[i]] = 1
-
-    if feat_file is not None:
-        feat = np.genfromtxt("{}{}.txt".format(path, feat_file),
-                             dtype=np.float)
-        features = feat[:, :2]
-    else:
-        features = np.eye(total_labeled)
-
-    rownetworks = data
-
-    train_idx = idx_train
-    val_idx = idx_val
-    test_idx = idx_test
-
-    train_mask = sample_mask(train_idx, y.shape[0])
-    val_mask = sample_mask(val_idx, y.shape[0])
-    test_mask = sample_mask(test_idx, y.shape[0])
-
-    y_train = np.zeros(y.shape)
-    y_val = np.zeros(y.shape)
-    y_test = np.zeros(y.shape)
-    # y_train[train_idx] = y[train_idx]
-    # y_val[val_idx] = y[val_idx]
-    # y_test[test_idx] = y[test_idx]
-    y_train[train_mask, :] = y[train_mask, :]
-    y_val[val_mask, :] = y[val_mask, :]
-    y_test[test_mask, :] = y[test_mask, :]
-
-    # return selected_idx, selected_idx_2
-    print('y_train:{}, y_val:{}, y_test:{}, train_idx:{}, val_idx:{}, test_idx:{}'.format(y_train.shape,
-                                                                                          y_val.shape,
-                                                                                          y_test.shape,
-                                                                                          train_idx.shape,
-                                                                                          val_idx.shape,
-                                                                                          test_idx.shape))
-    truefeatures_list = [features for _ in range(len(scheme))]
-    return rownetworks, truefeatures_list, y_train, y_val, y_test, train_mask, val_mask, test_mask
-
-
-def load_data_dblp(path='/home/jhy/allGAT/acm_hetesim/ACM3025.mat'):
+def load_data_dblp(path='./data/acm/ACM3025.mat'):
     data = sio.loadmat(path)
     truelabels, truefeatures = data['label'], data['feature'].astype(float)
     N = truefeatures.shape[0]
     rownetworks = [data['PAP'] - np.eye(N), data['PLP'] - np.eye(N)]  # , data['PTP'] - np.eye(N)]
 
     y = truelabels
-    train_idx = data['train_idx']
-    val_idx = data['val_idx']
-    test_idx = data['test_idx']
+    train_idx = data['train_idx'].reshape(-1)
+    val_idx = data['val_idx'].reshape(-1)
+    test_idx = data['test_idx'].reshape(-1)
 
     train_mask = sample_mask(train_idx, y.shape[0])
     val_mask = sample_mask(val_idx, y.shape[0])
@@ -177,8 +87,135 @@ def load_data_dblp(path='/home/jhy/allGAT/acm_hetesim/ACM3025.mat'):
     return rownetworks, truefeatures_list, y_train, y_val, y_test, train_mask, val_mask, test_mask
 
 
+def load_data_yago(path='C:/Users/dhding/Documents/GitHub/HINGCN/data/freebase/'):
+    MAM_file = "MDM_cnt"
+    MDM_file = "MDM_cnt"
+    MWM_file = "MWM_cnt"
+    MAM = sp.load_npz("{}{}.npz".format(path, MAM_file), )
+    MDM = sp.load_npz("{}{}.npz".format(path, MDM_file), )
+    MWM = sp.load_npz("{}{}.npz".format(path, MWM_file), )
+    label_file = "labels"
+    movies = []
+    with open('{}{}.txt'.format(path, "movies"), mode='r', encoding='UTF-8') as f:
+        for line in f:
+            movies.append(line.split()[0])
+
+    n_movie = len(movies)
+    movie_dict = {a: i for (i, a) in enumerate(movies)}
+
+    features = np.zeros(n_movie).reshape(-1, 1)
+    labels_raw = []
+    with open('{}{}.txt'.format(path, label_file), 'r', encoding='UTF-8') as f:
+        for line in f:
+            arr = line.split()
+            labels_raw.append([int(movie_dict[arr[0]]), int(arr[1])])
+    labels_raw = np.asarray(labels_raw)
+
+    labels = np.zeros(n_movie,dtype=int)
+    labels[labels_raw[:, 0]] = labels_raw[:, 1]
+
+    reordered = np.random.permutation(labels_raw[:, 0])
+    total_labeled = labels_raw.shape[0]
+
+    idx_train = reordered[range(int(total_labeled * 0.4))]
+    idx_val = reordered[range(int(total_labeled * 0.4), int(total_labeled * 0.8))]
+    idx_test = reordered[range(int(total_labeled * 0.8), total_labeled)]
+
+    truefeatures= features
+
+    truelabels  = labels
+    N = truefeatures.shape[0]
+    rownetworks = [MAM - np.eye(N), MDM - np.eye(N), MWM-np.eye(N)]  # , data['PTP'] - np.eye(N)]
+
+    y = np.zeros((labels.shape[0],3))
+    y [:, labels] = 1
+
+    train_idx = idx_train
+    val_idx = idx_val
+    test_idx = idx_test
+
+    train_mask = sample_mask(train_idx, y.shape[0])
+    val_mask = sample_mask(val_idx, y.shape[0])
+    test_mask = sample_mask(test_idx, y.shape[0])
+
+    y_train = np.zeros(y.shape)
+    y_val = np.zeros(y.shape)
+    y_test = np.zeros(y.shape)
+    y_train[train_idx] = y[train_idx]
+    y_val[val_idx] = y[val_idx]
+    y_test[test_idx] = y[test_idx]
+
+    # return selected_idx, selected_idx_2
+    print('y_train:{}, y_val:{}, y_test:{}, train_idx:{}, val_idx:{}, test_idx:{}'.format(y_train.shape,
+                                                                                          y_val.shape,
+                                                                                          y_test.shape,
+                                                                                          train_idx.shape,
+                                                                                          val_idx.shape,
+                                                                                          test_idx.shape))
+    truefeatures_list = [truefeatures, truefeatures, truefeatures]
+    return rownetworks, truefeatures_list, y_train, y_val, y_test, train_mask, val_mask, test_mask
+
+
+
+def load_data_yelp(path='C:/Users/dhding/Documents/GitHub/HINGCN/data/yelp/'):
+    BRURB_file = "BRURB_cnt"
+    BRKRB_file = "BRKRB_cnt"
+    feat_file = "attributes"
+    label_file = "true_cluster"
+
+    BRURB = sp.load_npz("{}{}.npz".format(path, BRURB_file) ).todense()
+    BRKRB = sp.load_npz("{}{}.npz".format(path, BRKRB_file) ).todense()
+
+    feat = np.genfromtxt("{}{}.txt".format(path, feat_file),
+                         dtype=np.float)
+
+    labels = np.genfromtxt("{}{}.txt".format(path, label_file),
+                           dtype=np.int32)
+
+    reordered = np.random.permutation(np.arange(labels.shape[0]))
+    total_labeled = labels.shape[0]
+
+    idx_train = reordered[range(int(total_labeled * 0.4))]
+    idx_val = reordered[range(int(total_labeled * 0.4), int(total_labeled * 0.8))]
+    idx_test = reordered[range(int(total_labeled * 0.8), total_labeled)]
+
+    y = np.zeros((total_labeled,3))
+    y[:,labels]=1
+
+    features = feat[:, :2]
+    features = np.zeros(total_labeled).reshape(-1, 1)
+
+    rownetworks = [BRURB, BRKRB]
+
+    train_idx = idx_train
+    val_idx = idx_val
+    test_idx = idx_test
+
+    train_mask = sample_mask(train_idx, y.shape[0])
+    val_mask = sample_mask(val_idx, y.shape[0])
+    test_mask = sample_mask(test_idx, y.shape[0])
+
+    y_train = np.zeros(y.shape)
+    y_val = np.zeros(y.shape)
+    y_test = np.zeros(y.shape)
+    y_train[train_idx] = y[train_idx]
+    y_val[val_idx] = y[val_idx]
+    y_test[test_idx] = y[test_idx]
+
+    # return selected_idx, selected_idx_2
+    print('y_train:{}, y_val:{}, y_test:{}, train_idx:{}, val_idx:{}, test_idx:{}'.format(y_train.shape,
+                                                                                          y_val.shape,
+                                                                                          y_test.shape,
+                                                                                          train_idx.shape,
+                                                                                          val_idx.shape,
+                                                                                          test_idx.shape))
+    truefeatures_list = [features, features]
+    return rownetworks, truefeatures_list, y_train, y_val, y_test, train_mask, val_mask, test_mask
+
+
+
 # use adj_list as fea_list, have a try~
-adj_list, fea_list, y_train, y_val, y_test, train_mask, val_mask, test_mask = load_data(dataset)
+adj_list, fea_list, y_train, y_val, y_test, train_mask, val_mask, test_mask = load_data_yelp()
 if featype == 'adj':
     fea_list = adj_list
 

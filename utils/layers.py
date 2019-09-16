@@ -3,7 +3,6 @@ import tensorflow as tf
 
 conv1d = tf.layers.conv1d
 
-
 def attn_head(seq, out_sz, bias_mat, activation, in_drop=0.0, coef_drop=0.0, residual=False,
               return_coef=False):
     """[summary]
