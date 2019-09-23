@@ -373,8 +373,8 @@ with tf.Graph().as_default():
         true=tf.concat(true, 0)
         print('Test loss:', ts_loss / ts_step,
               '; Test accuracy:', ts_acc / ts_step,
-              "micro" , float(metrics.f1_score(true, pred, average="micro")),
-              "macro" , float(metrics.f1_score(true, pred, average="macro")),
+              "micro" , float(metrics.f1_score(true, pred,sample_weight=test_mask[0], average="micro")),
+              "macro" , float(metrics.f1_score(true, pred,sample_weight=test_mask[0], average="macro")),
               )
 
         # print('start knn, kmean.....')
