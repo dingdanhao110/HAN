@@ -11,7 +11,7 @@ import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
 
 config = tf.ConfigProto()
-# config.gpu_options.allow_growth = True
+config.gpu_options.allow_growth = True
 
 dataset = 'freebase'
 featype = 'fea'
@@ -58,15 +58,15 @@ def sample_mask(idx, l):
 scheme_ind = {'dblp':['APA','APAPA','APCPA'],'yelp':['BRURB','BRKRB'],'freebase':['MAM','MDM','MWM']}
 feat_ind = {'dblp':None,'yelp':None,'freebase':None}
 label_ind = {'dblp':'labels','yelp':'true_cluster','freebase':'labels'}
-path_ind = {'dblp':'C:/Users/v-dandin/source/repos/HINGCN/data/dblp2/',
-        'yelp':'C:/Users/v-dandin/source/repos/HINGCN/data/yelp/',
-        'freebase':'C:/Users/v-dandin/source/repos/HINGCN/data/freebase/'}
+path_ind = {'dblp':'~/Git/HINGCN/data/dblp2/',
+        'yelp':'~/Git/HINGCN/data/yelp/',
+        'freebase':'~/Git/HINGCN/data/freebase/'}
 
 def load_data(dataset):
     scheme = scheme_ind[dataset]
     feat_file = feat_ind[dataset]
     label_file = label_ind[dataset]
-    path = path_ind[dataset]
+    path = os.path.expanduser(path_ind[dataset])
 
     set_seeds(42)
     data = []
@@ -369,8 +369,9 @@ with tf.Graph().as_default():
             pred.append(y_pred)
             true.append(y_true)
         from sklearn import metrics
-        pred=tf.concat(pred, 0)
-        true=tf.concat(true, 0)
+        pred=np.concatenate(pred)
+        true=np.concatenate(true)
+        print(pred.shape,true.shape)
         print('Test loss:', ts_loss / ts_step,
               '; Test accuracy:', ts_acc / ts_step,
               "micro" , float(metrics.f1_score(true, pred, average="micro")),
