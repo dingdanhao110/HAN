@@ -8,10 +8,10 @@ from utils import process
 # 禁用gpu
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
 
 config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
+# config.gpu_options.allow_growth = True
 
 dataset = 'freebase'
 featype = 'fea'
@@ -20,7 +20,7 @@ print('model: {}'.format(checkpt_file))
 # training params
 batch_size = 1
 nb_epochs = 2000
-patience = 100
+patience = 1
 lr = 0.005  # learning rate
 l2_coef = 0.0005  # weight decay
 # numbers of hidden units per each attention head in each layer
@@ -55,11 +55,12 @@ def sample_mask(idx, l):
     mask[idx] = 1
     return np.array(mask, dtype=np.bool)
 
-scheme_ind = {'yelp':['BRURB','BRKRB'],'freebase':['MAM','MDM','MWM']}
-feat_ind = {'yelp':None,'freebase':None}
-label_ind = {'yelp':'true_cluster','freebase':'labels'}
-path_ind = {'yelp':'C:/Users/dhding/Documents/GitHub/HINGCN/data/yelp/',
-        'freebase':'C:/Users/dhding/Documents/GitHub/HINGCN/data/freebase/'}
+scheme_ind = {'dblp':['APA','APAPA','APCPA'],'yelp':['BRURB','BRKRB'],'freebase':['MAM','MDM','MWM']}
+feat_ind = {'dblp':None,'yelp':None,'freebase':None}
+label_ind = {'dblp':'labels','yelp':'true_cluster','freebase':'labels'}
+path_ind = {'dblp':'C:/Users/v-dandin/source/repos/HINGCN/data/dblp2/',
+        'yelp':'C:/Users/v-dandin/source/repos/HINGCN/data/yelp/',
+        'freebase':'C:/Users/v-dandin/source/repos/HINGCN/data/freebase/'}
 
 def load_data(dataset):
     scheme = scheme_ind[dataset]
@@ -71,7 +72,7 @@ def load_data(dataset):
     data = []
 
     for s in scheme:
-        data.append(sp.load_npz("{}{}_cnt.npz".format(path, s) ).todense())
+        data.append(sp.load_npz("{}{}_ps.npz".format(path, s) ).todense())
 
 
     if dataset == 'freebase':
@@ -236,6 +237,8 @@ with tf.Graph().as_default():
     log_resh = tf.reshape(logits, [-1, nb_classes])
     lab_resh = tf.reshape(lbl_in, [-1, nb_classes])
     msk_resh = tf.reshape(msk_in, [-1])
+    y_pred = tf.argmax(log_resh, axis=1)
+    y_true = tf.argmax(lab_resh, axis=1)
     loss = model.masked_softmax_cross_entropy(log_resh, lab_resh, msk_resh)
     accuracy = model.masked_accuracy(log_resh, lab_resh, msk_resh)
     # optimzie
@@ -340,7 +343,8 @@ with tf.Graph().as_default():
         ts_step = 0
         ts_loss = 0.0
         ts_acc = 0.0
-
+        pred=[]
+        true=[]
         while ts_step * batch_size < ts_size:
             # fd1 = {ftr_in: features[ts_step * batch_size:(ts_step + 1) * batch_size]}
             fd1 = {i: d[ts_step * batch_size:(ts_step + 1) * batch_size]
@@ -357,27 +361,34 @@ with tf.Graph().as_default():
             fd = fd1
             fd.update(fd2)
             fd.update(fd3)
-            loss_value_ts, acc_ts, jhy_final_embedding = sess.run([loss, accuracy, final_embedding],
+            loss_value_ts, acc_ts, jhy_final_embedding,y_pred,y_true = sess.run([loss, accuracy, final_embedding,y_pred,y_true],
                                                                   feed_dict=fd)
             ts_loss += loss_value_ts
             ts_acc += acc_ts
             ts_step += 1
-
+            pred.append(y_pred)
+            true.append(y_true)
+        from sklearn import metrics
+        pred=tf.concat(pred, 0)
+        true=tf.concat(true, 0)
         print('Test loss:', ts_loss / ts_step,
-              '; Test accuracy:', ts_acc / ts_step)
+              '; Test accuracy:', ts_acc / ts_step,
+              "micro" , float(metrics.f1_score(true, pred, average="micro")),
+              "macro" , float(metrics.f1_score(true, pred, average="macro")),
+              )
 
-        print('start knn, kmean.....')
-        xx = np.expand_dims(jhy_final_embedding, axis=0)[test_mask]
+        # print('start knn, kmean.....')
+        # xx = np.expand_dims(jhy_final_embedding, axis=0)[test_mask]
   
-        from numpy import linalg as LA
+        # from numpy import linalg as LA
 
-        # xx = xx / LA.norm(xx, axis=1)
-        yy = y_test[test_mask]
+        # # xx = xx / LA.norm(xx, axis=1)
+        # yy = y_test[test_mask]
 
-        print('xx: {}, yy: {}'.format(xx.shape, yy.shape))
-        from jhyexp import my_KNN, my_Kmeans#, my_TSNE, my_Linear
+        # print('xx: {}, yy: {}'.format(xx.shape, yy.shape))
+        # from jhyexp import my_KNN, my_Kmeans#, my_TSNE, my_Linear
 
-        my_KNN(xx, yy)
-        my_Kmeans(xx, yy)
+        # my_KNN(xx, yy)
+        # my_Kmeans(xx, yy)
 
         sess.close()
