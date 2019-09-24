@@ -369,8 +369,8 @@ with tf.Graph().as_default():
             pred.append(y_pred)
             true.append(y_true)
         from sklearn import metrics
-        pred=tf.concat(pred, 0)
-        true=tf.concat(true, 0)
+        pred=np.concatenate(pred)
+        true=np.concatenate(true)
         print('Test loss:', ts_loss / ts_step,
               '; Test accuracy:', ts_acc / ts_step,
               "micro" , float(metrics.f1_score(true, pred,sample_weight=test_mask[0], average="micro")),

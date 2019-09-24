@@ -31,6 +31,7 @@ class GAT(BaseGAttN):
 
         return logits
 
+
 class HeteGAT_multi(BaseGAttN):
     def inference(inputs_list, nb_classes, nb_nodes, training, attn_drop, ffd_drop,
                   bias_mat_list, hid_units, n_heads, activation=tf.nn.elu, residual=False,
@@ -67,8 +68,9 @@ class HeteGAT_multi(BaseGAttN):
 
         out = []
         for i in range(n_heads[-1]):
-      
-            out.append(tf.layers.dense(final_embed, nb_classes, activation=None))
+
+            out.append(tf.layers.dense(
+                final_embed, nb_classes, activation=None))
         #     out.append(layers.attn_head(h_1, bias_mat=bias_mat,
         #                                 out_sz=nb_classes, activation=lambda x: x,
         #                                 in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
@@ -78,6 +80,7 @@ class HeteGAT_multi(BaseGAttN):
 
         logits = tf.expand_dims(logits, axis=0)
         return logits, final_embed, att_val
+
 
 class HeteGAT_no_coef(BaseGAttN):
     def inference(inputs, nb_classes, nb_nodes, training, attn_drop, ffd_drop,
@@ -91,9 +94,9 @@ class HeteGAT_no_coef(BaseGAttN):
             for _ in range(n_heads[0]):
 
                 attns.append(layers.attn_head(inputs, bias_mat=bias_mat,
-                                                  out_sz=hid_units[0], activation=activation,
-                                                  in_drop=ffd_drop, coef_drop=attn_drop, residual=False,
-                                                  return_coef=return_coef))
+                                              out_sz=hid_units[0], activation=activation,
+                                              in_drop=ffd_drop, coef_drop=attn_drop, residual=False,
+                                              return_coef=return_coef))
             h_1 = tf.concat(attns, axis=-1)
             for i in range(1, len(hid_units)):
                 h_old = h_1
@@ -119,7 +122,8 @@ class HeteGAT_no_coef(BaseGAttN):
         # last layer for clf
         out = []
         for i in range(n_heads[-1]):
-            out.append(tf.layers.dense(final_embed, nb_classes, activation=None))
+            out.append(tf.layers.dense(
+                final_embed, nb_classes, activation=None))
         #     out.append(layers.attn_head(h_1, bias_mat=bias_mat,
         #                                 out_sz=nb_classes, activation=lambda x: x,
         #                                 in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
@@ -131,6 +135,7 @@ class HeteGAT_no_coef(BaseGAttN):
         #     return logits, final_embed, att_val, coef_list
         # else:
         return logits, final_embed, att_val
+
 
 class HeteGAT(BaseGAttN):
     def inference(inputs, nb_classes, nb_nodes, training, attn_drop, ffd_drop,
@@ -193,7 +198,8 @@ class HeteGAT(BaseGAttN):
         # last layer for clf
         out = []
         for i in range(n_heads[-1]):
-            out.append(tf.layers.dense(final_embed, nb_classes, activation=None))
+            out.append(tf.layers.dense(
+                final_embed, nb_classes, activation=None))
         #     out.append(layers.attn_head(h_1, bias_mat=bias_mat,
         #                                 out_sz=nb_classes, activation=lambda x: x,
         #                                 in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
@@ -204,5 +210,3 @@ class HeteGAT(BaseGAttN):
             return logits, final_embed, att_val, coef_list
         else:
             return logits, final_embed, att_val
-        
- 
