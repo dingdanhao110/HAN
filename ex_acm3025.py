@@ -12,8 +12,9 @@ import os
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-
-dataset = 'freebase'
+train_per=0.1
+random_seed=0
+dataset = 'yelp'
 featype = 'fea'
 checkpt_file = '{}.ckpt'.format(dataset)
 print('model: {}'.format(checkpt_file))
@@ -24,11 +25,13 @@ patience = 100
 lr = 0.005  # learning rate
 l2_coef = 0.0005  # weight decay
 # numbers of hidden units per each attention head in each layer
-hid_units = [64,32]
+hid_units = [64,64]
 n_heads = [8, 1]  # additional entry for the output layer
 residual = False
 nonlinearity = tf.nn.elu
 model = HeteGAT_multi
+att_drop=0.3
+input_drop=0.6
 
 print('Dataset: ' + dataset)
 print('----- Opt. hyperparams -----')
@@ -57,7 +60,7 @@ def sample_mask(idx, l):
 
 scheme_ind = {'dblp':['APA','APAPA','APCPA'],'yelp':['BRURB','BRKRB'],'freebase':['MAM','MDM','MWM']}
 feat_ind = {'dblp':None,'yelp':None,'freebase':None}
-label_ind = {'dblp':'labels','yelp':'true_cluster','freebase':'labels'}
+label_ind = {'dblp':'author_label','yelp':'true_cluster','freebase':'labels'}
 path_ind = {'dblp':'~/Git/HINGCN/data/dblp2/',
         'yelp':'~/Git/HINGCN/data/yelp/',
         'freebase':'~/Git/HINGCN/data/freebase/'}
@@ -68,7 +71,7 @@ def load_data(dataset):
     label_file = label_ind[dataset]
     path = os.path.expanduser(path_ind[dataset])
 
-    set_seeds(42)
+    set_seeds(random_seed)
     data = []
 
     for s in scheme:
@@ -99,18 +102,21 @@ def load_data(dataset):
     reordered = np.random.permutation(np.arange(labels.shape[0]))
     total_labeled = labels.shape[0]
 
-    idx_train = reordered[range(int(total_labeled * 0.4))]
+    idx_train = reordered[range(int(total_labeled * train_per))]
     idx_val = reordered[range(int(total_labeled * 0.4), int(total_labeled * 0.8))]
     idx_test = reordered[range(int(total_labeled * 0.8), total_labeled)]
 
-    y = np.zeros((total_labeled,3))
+    y = np.zeros((total_labeled, np.max(labels)+1))
     for i in range(total_labeled):
         y[i,labels[i]] = 1
 
     if feat_file is not None:
         feat = np.genfromtxt("{}{}.txt".format(path, feat_file),
                              dtype=np.float)
-        features = feat[:, :2]
+        if dataset == 'yelp':
+            features = feat[:, :2]
+        else:
+            features = feat
     else:
         features = np.eye(total_labeled)
 
@@ -275,8 +281,8 @@ with tf.Graph().as_default():
                 fd3 = {lbl_in: y_train[tr_step * batch_size:(tr_step + 1) * batch_size],
                        msk_in: train_mask[tr_step * batch_size:(tr_step + 1) * batch_size],
                        is_train: True,
-                       attn_drop: 0.6,
-                       ffd_drop: 0.6}
+                       attn_drop: att_drop,
+                       ffd_drop: input_drop}
                 fd = fd1
                 fd.update(fd2)
                 fd.update(fd3)
