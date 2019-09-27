@@ -310,7 +310,7 @@ with tf.Graph().as_default():
                 val_acc_avg += acc_vl
                 vl_step += 1
             # import pdb; pdb.set_trace()
-            print('Epoch: {}, att_val: {}'.format(epoch, np.mean(att_val_train, axis=0)))
+            # print('Epoch: {}, att_val: {}'.format(epoch, np.mean(att_val_train, axis=0)))
             print('Training: loss = %.5f, acc = %.5f | Val: loss = %.5f, acc = %.5f' %
                   (train_loss_avg / tr_step, train_acc_avg / tr_step,
                    val_loss_avg / vl_step, val_acc_avg / vl_step))

@@ -191,7 +191,7 @@ class HeteGAT(BaseGAttN):
         # prepare shape for SimpleAttLayer
         # print('att for mp')
         multi_embed = tf.concat(embed_list, axis=1)
-        final_embed, att_val = layers.SimpleAttLayer(multi_embed, mp_att_size,
+        final_embed, att_val = layers.GLUAttLayer(multi_embed, mp_att_size,
                                                      time_major=False,
                                                      return_alphas=True)
         # print(att_val)
