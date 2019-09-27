@@ -20,7 +20,7 @@ print('model: {}'.format(checkpt_file))
 # training params
 batch_size = 1
 nb_epochs = 2000
-patience = 1
+patience = 100
 lr = 0.005  # learning rate
 l2_coef = 0.0005  # weight decay
 # numbers of hidden units per each attention head in each layer
@@ -310,7 +310,7 @@ with tf.Graph().as_default():
                 val_acc_avg += acc_vl
                 vl_step += 1
             # import pdb; pdb.set_trace()
-            print('Epoch: {}, att_val: {}'.format(epoch, np.mean(att_val_train, axis=0)))
+            # print('Epoch: {}, att_val: {}'.format(epoch, np.mean(att_val_train, axis=0)))
             print('Training: loss = %.5f, acc = %.5f | Val: loss = %.5f, acc = %.5f' %
                   (train_loss_avg / tr_step, train_acc_avg / tr_step,
                    val_loss_avg / vl_step, val_acc_avg / vl_step))
@@ -371,7 +371,10 @@ with tf.Graph().as_default():
         from sklearn import metrics
         pred=np.concatenate(pred)
         true=np.concatenate(true)
-        print(pred.shape,true.shape)
+
+        #print(pred.shape,true.shape)
+
+
         print('Test loss:', ts_loss / ts_step,
               '; Test accuracy:', ts_acc / ts_step,
               "micro" , float(metrics.f1_score(true, pred,sample_weight=test_mask[0], average="micro")),
